@@ -49,18 +49,7 @@ The rules and metadata are stored in a relational database. Below is the example
 npm install
 npm run dev
 
-### Setup and Configuration
 
-
-curl -X POST http://localhost:3000/api/create_rule -d 'rule="age > 30 AND department = 'Sales'"'
-
-curl -X POST http://localhost:3000/api/evaluate_rule -d '{
-    "age": 35,
-    "department": "Sales",
-    "salary": 60000,
-    "experience": 3
-}'
-curl -X POST http://localhost:3000/api/combine_rules -d '["rule1", "rule2"]'
 
 
 ### Error Handling and Validation
