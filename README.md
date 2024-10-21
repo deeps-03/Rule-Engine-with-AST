@@ -56,12 +56,7 @@ npm run dev
 Invalid rule strings: The system will return a validation error for missing operators or invalid comparisons.
 Attribute validation: Only predefined attributes (e.g., age, department, salary) are allowed.
 
-## Features
 
-* Dynamic creation and modification of conditional rules.
-* Abstract Syntax Tree (AST) representation of rules.
-* API to evaluate user attributes against predefined rules.
-* Supports various attributes like age, department, salary, and experience.
 
 ![Rule Engine UI](./screenshots/RuleEngine1.jpg)
 
