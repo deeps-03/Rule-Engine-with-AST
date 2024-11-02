@@ -44,13 +44,13 @@ The rules and metadata are stored in a relational database. Below is the example
 
 
 
-### Installation
+## Installation
 
 npm install
 
 npm run dev
 
-### Docker Hub Link
+## Docker Hub Link
 
 Link: https://hub.docker.com/repository/docker/deepaksuresh03/rule-engine-with-ast/general
 
