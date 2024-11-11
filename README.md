@@ -17,6 +17,7 @@ The rules are represented as an Abstract Syntax Tree (AST), where each node can 
 - **Operator Node**: Represents a logical operator (AND/OR).
 - **Operand Node**: Represents conditions (e.g., age > 30, department = 'Sales').
 
+
 ## New Feature: Individual Feature Evaluation
 
 The new feature allows for the evaluation of individual features (such as age, department, salary) separately, in addition to the overall evaluation. This helps provide more granular feedback about which specific conditions are met or not met, allowing users to understand why a rule passes or fails based on individual criteria.
@@ -33,6 +34,7 @@ If a rule is `age > 30 AND department = 'Sales'`, the system will provide the fo
 
 - Node.js (v14 or later)
 - npm (v6 or later)
+
 
 ## Data Storage
 
@@ -53,6 +55,8 @@ The rules and metadata are stored in a relational database. Below is an example 
 | 1         | `age > 30 AND department = 'Sales'`   | `{"type": "operator", "value": "AND", "left": ...}`                      |
 | 2         | `age < 25 AND department = 'Marketing'` | `{"type": "operator", "value": "AND", "right": ...}`                     |
 
+
+
 ## Docker Usage
 
 To run the application using Docker, follow these steps:
@@ -70,10 +74,17 @@ To run the application using Docker, follow these steps:
 docker-compose down
 ```
 
-4. ****To rebuild and restart the application:**:
+4. **To rebuild and restart the application:**:
 ```bash
 docker-compose up --build -d
 ```
+
+
+## Docker Hub Link
+
+Link: https://hub.docker.com/repository/docker/deepaksuresh03/rule-engine-with-ast/general
+
+
 
 ## Installation
 
@@ -84,6 +95,7 @@ npm install
 npm run dev
 ```
 This will start the application in development mode.
+
 
 ## Testing the Application
 
@@ -113,6 +125,8 @@ You can use the following JSON input for evaluation:
   "experience": 12
 }
 ```
+
+
 ## Error Handling and Validation
 
 **Invalid Rule Strings**: The system is designed to return a validation error for invalid rule strings, such as those that are missing operators or contain invalid comparisons. This is evident from the error handling implemented in the createRule and combineRules functions, which throw errors for invalid inputs.
@@ -120,6 +134,7 @@ You can use the following JSON input for evaluation:
 **Attribute Validation**: The project specifies that only predefined attributes (like age, department, salary) are allowed for rule creation and evaluation. Although the code does not explicitly show the validation for predefined attributes, it is implied in the context that the rules are designed to work with specific attributes.
 
 Overall, the project includes mechanisms for handling errors related to rule creation and evaluation, ensuring that only valid rules are processed.
+
 
 ## Conclusion
 
