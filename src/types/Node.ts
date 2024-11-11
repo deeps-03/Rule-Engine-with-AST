@@ -1,8 +1,9 @@
+// src/types/Node.ts
 export interface Node {
-  type: 'operator' | 'operand';
+  type: 'operand' | 'operator';
+  operator?: string;
   left?: Node;
   right?: Node;
-  value?: string | number;
-  operator?: string;
   attribute?: string;
+  value?: any;
 }

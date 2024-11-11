@@ -1,33 +1,52 @@
 import { Node } from '../types/Node';
 
+// Function to create a rule from a string
 export function createRule(ruleString: string): Node {
   const tokens = tokenize(ruleString);
+  if (tokens.length === 0) {
+    throw new Error('Invalid rule string: No tokens found');
+  }
   return parseExpression(tokens);
 }
 
+// Function to combine multiple rules into a single rule
 export function combineRules(rules: string[]): Node {
-  const parsedRules = rules.map(createRule);
-  return {
+  if (rules.length === 0) {
+    throw new Error('No rules provided to combine');
+  }
+  
+  const parsedRules = rules.map(rule => {
+    try {
+      return createRule(rule);
+    } catch (error) {
+      console.error(`Error creating rule from string "${rule}":`, error.message); // Log any errors during rule creation
+      throw error; // Rethrow the error after logging
+    }
+  });
+
+  const combinedRule = parsedRules.reduce((acc, rule) => ({
     type: 'operator',
     operator: 'AND',
-    left: parsedRules[0],
-    right: parsedRules.slice(1).reduce((acc, rule) => ({
-      type: 'operator',
-      operator: 'AND',
-      left: acc,
-      right: rule,
-    })),
-  };
+    left: acc,
+    right: rule,
+  }));
+
+  console.log('Combined Rule:', JSON.stringify(combinedRule)); // Log the combined rule
+  return combinedRule;
 }
 
+// Function to evaluate a rule against the provided data
 export function evaluateRule(node: Node, data: Record<string, any>): boolean {
+  console.log('Evaluating node:', node); // Log the current node being evaluated
+
   if (node.type === 'operand') {
     const { attribute, operator, value } = node;
     const dataValue = data[attribute!];
+    console.log(`Evaluating operand: ${attribute} ${operator} ${value} against ${dataValue}`); // Log the evaluation
     switch (operator) {
       case '>': return dataValue > value;
       case '<': return dataValue < value;
-      case '=': return dataValue === value;
+      case '=': return dataValue === value; // Handle equality check
       case '>=': return dataValue >= value;
       case '<=': return dataValue <= value;
       default: throw new Error(`Unknown operator: ${operator}`);
@@ -35,6 +54,7 @@ export function evaluateRule(node: Node, data: Record<string, any>): boolean {
   } else {
     const leftResult = evaluateRule(node.left!, data);
     const rightResult = evaluateRule(node.right!, data);
+    console.log(`Evaluating operator: ${node.operator} with results ${leftResult} and ${rightResult}`); // Log operator evaluation
     switch (node.operator) {
       case 'AND': return leftResult && rightResult;
       case 'OR': return leftResult || rightResult;
@@ -43,23 +63,29 @@ export function evaluateRule(node: Node, data: Record<string, any>): boolean {
   }
 }
 
+// Function to tokenize the rule string into components
 function tokenize(ruleString: string): string[] {
   return ruleString.match(/\(|\)|\w+|[<>=]+|\d+|'[^']*'/g) || [];
 }
 
+// Function to parse tokens into an expression tree
 function parseExpression(tokens: string[]): Node {
+  if (tokens.length === 0) {
+    throw new Error('No tokens to parse');
+  }
+
   if (tokens[0] === '(') {
     const closingIndex = findClosingParenthesis(tokens);
     const innerExpression = tokens.slice(1, closingIndex);
     const parsedInner = parseExpression(innerExpression);
-    
+
     if (closingIndex === tokens.length - 1) {
       return parsedInner;
     }
-    
+
     const operator = tokens[closingIndex + 1];
     const right = parseExpression(tokens.slice(closingIndex + 2));
-    
+
     return {
       type: 'operator',
       operator,
@@ -67,7 +93,7 @@ function parseExpression(tokens: string[]): Node {
       right,
     };
   }
-  
+
   if (tokens.length === 3) {
     return {
       type: 'operand',
@@ -76,17 +102,17 @@ function parseExpression(tokens: string[]): Node {
       value: isNaN(Number(tokens[2])) ? tokens[2].replace(/'/g, '') : Number(tokens[2]),
     };
   }
-  
+
   const leftOperand = {
     type: 'operand',
     attribute: tokens[0],
     operator: tokens[1],
     value: isNaN(Number(tokens[2])) ? tokens[2].replace(/'/g, '') : Number(tokens[2]),
   };
-  
+
   const operator = tokens[3];
   const right = parseExpression(tokens.slice(4));
-  
+
   return {
     type: 'operator',
     operator,
@@ -95,6 +121,7 @@ function parseExpression(tokens: string[]): Node {
   };
 }
 
+// Function to find the closing parenthesis in a token array
 function findClosingParenthesis(tokens: string[]): number {
   let count = 1;
   for (let i = 1; i < tokens.length; i++) {
