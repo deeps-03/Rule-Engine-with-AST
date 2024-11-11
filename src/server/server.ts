@@ -1,97 +1,171 @@
-import express from 'express';
-import sqlite3 from 'sqlite3';
-import { createRule, combineRules, evaluateRule } from '../utils/ruleEngine';
-import { Node } from '../types/Node';
+import React, { useState, useEffect } from 'react';
+import { PlusCircle, Trash2 } from 'lucide-react';
+import { createRule, combineRules, evaluateRule } from './utils/ruleEngine';
+import { Node } from './types/Node';
 
-const app = express();
-const port = 3000;
+interface Rule {
+  id: number;
+  name: string;
+  rule_string: string;
+}
 
-app.use(express.json());
-
-const db = new sqlite3.Database(':memory:');
-
-db.serialize(() => {
-  db.run(`CREATE TABLE rules (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    rule_string TEXT
-  )`);
-});
-
-// Middleware for logging requests
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`, req.body);
-  next();
-});
-
-// Endpoint to add a new rule
-app.post('/api/rules', (req, res) => {
-  const { name, ruleString } = req.body;
-
-  // Validate input
-  if (!name || !ruleString) {
-    return res.status(400).json({ error: 'Both name and rule string are required.' });
+// Mock API
+const mockApi = {
+  rules: [] as Rule[],
+  getRules: () => Promise.resolve(mockApi.rules),
+  addRule: (rule: Omit<Rule, 'id'>) => {
+    const newRule = { ...rule, id: mockApi.rules.length + 1 };
+    mockApi.rules.push(newRule);
+    return Promise.resolve(newRule);
+  },
+  deleteRule: (id: number) => {
+    mockApi.rules = mockApi.rules.filter(rule => rule.id !== id);
+    return Promise.resolve();
+  },
+  evaluateRules: (ruleIds: number[], data: Record<string, any>) => {
+    const selectedRules = mockApi.rules.filter(rule => ruleIds.includes(rule.id));
+    const ruleStrings = selectedRules.map(rule => rule.rule_string);
+    const combinedRule = combineRules(ruleStrings);
+    const result = evaluateRule(combinedRule, data);
+    const individualResults = ruleStrings.map((rule, index) => {
+      const ruleNode = createRule(rule);
+      const ruleResult = evaluateRule(ruleNode, data);
+      return {
+        rule: rule,
+        result: ruleResult.result,
+      };
+    });
+    return Promise.resolve({ finalResult: result, individualResults });
   }
+};
 
-  db.run('INSERT INTO rules (name, rule_string) VALUES (?, ?)', [name, ruleString], function(err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+function App() {
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [newRuleName, setNewRuleName] = useState('');
+  const [newRuleString, setNewRuleString] = useState('');
+  const [evaluationData, setEvaluationData] = useState('');
+  const [evaluationResult, setEvaluationResult] = useState<boolean | null>(null);
+  const [individualResults, setIndividualResults] = useState<{ rule: string; result: boolean }[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchRules();
+  }, []);
+
+  const fetchRules = async () => {
+    try {
+      const fetchedRules = await mockApi.getRules();
+      setRules(fetchedRules);
+    } catch (error) {
+      console.error('Error fetching rules:', error);
+      setError('Failed to fetch rules. Please try again.');
     }
-    res.status(201).json({ id: this.lastID, name, ruleString });
-  });
-});
+  };
 
-// Endpoint to get all rules
-app.get('/api/rules', (req, res) => {
-  db.all('SELECT * FROM rules', (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    console.log('Retrieved rules:', rows); // Log retrieved rules for verification
-    res.json(rows);
-  });
-});
-
-// Endpoint to evaluate rules
-app.post('/api/evaluate', (req, res) => {
-  const { ruleIds, data } = req.body;
-
-  // Validate input
-  if (!Array.isArray(ruleIds) || ruleIds.length === 0) {
-    return res.status(400).json({ error: 'Rule IDs must be a non-empty array.' });
-  }
-  if (typeof data !== 'object' || data === null) {
-    return res.status(400).json({ error: 'Data must be a valid JSON object.' });
-  }
-
-  // Log the incoming request data
-  console.log('Evaluating rules with IDs:', ruleIds);
-  console.log('Data for evaluation:', data);
-
-  db.all('SELECT rule_string FROM rules WHERE id IN (' + ruleIds.map(() => '?').join(',') + ')', ruleIds, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    
-    const ruleStrings = rows.map((row: any) => row.rule_string);
-    
-    if (ruleStrings.length === 0) {
-      return res.status(404).json({ error: 'No rules found for the provided IDs.' });
+  const handleAddRule = async () => {
+    if (!newRuleName || !newRuleString) {
+      setError('Both name and rule string are required.');
+      return;
     }
 
     try {
-      const combinedRule = combineRules(ruleStrings);
-      console.log('Combined Rule:', JSON.stringify(combinedRule)); // Log the combined rule
-      const result = evaluateRule(combinedRule, data);
-      res.json({ result });
+      await mockApi.addRule({ name: newRuleName, rule_string: newRuleString });
+      setNewRuleName('');
+      setNewRuleString('');
+      fetchRules(); // Fetch updated rules after adding a new rule
     } catch (error) {
-      console.error('Error during rule evaluation:', error); // Log the error
-      res.status(500).json({ error: error.message });
+      console.error('Error adding rule:', error);
+      setError('Failed to add rule. Please try again.');
     }
-  });
-});
+  };
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
+  const handleDeleteRule = async (id: number) => {
+    try {
+      await mockApi.deleteRule(id);
+      fetchRules(); // Fetch updated rules after deleting a rule
+    } catch (error) {
+      console.error('Error deleting rule:', error);
+      setError('Failed to delete rule. Please try again.');
+    }
+  };
+
+  const handleEvaluate = async () => {
+    let data: Record<string, any>;
+    try {
+      data = JSON.parse(evaluationData);
+    } catch (jsonError) {
+      setError('Invalid JSON input. Please check your data and try again.');
+      return;
+    }
+
+    if (rules.length === 0) {
+      setError('No rules to evaluate. Please add at least one rule.');
+      return;
+    }
+
+    try {
+      const response = await mockApi.evaluateRules(rules.map(r => r.id), data);
+      setEvaluationResult(response.finalResult);
+      setIndividualResults(response.individualResults);
+      setError(null); // Clear any previous errors
+    } catch (error) {
+      console.error('Error evaluating rules:', error);
+      setError('Failed to evaluate rules. Please try again.');
+    }
+  };
+
+  return (
+    <div>
+      <h1>Rule Evaluation App</h1>
+      {error && <div className="error">{error}</div>}
+      <div>
+        <input
+          type="text"
+          placeholder="Rule Name"
+          value={newRuleName}
+          onChange={(e) => setNewRuleName(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Rule String"
+          value={newRuleString}
+          onChange={(e) => setNewRuleString(e.target.value)}
+        />
+        <button onClick={handleAddRule}>
+          <PlusCircle /> Add Rule
+        </button>
+      </div>
+      <ul>
+        {rules.map(rule => (
+          <li key={rule.id}>
+            {rule.name} - {rule.rule_string}
+            <button onClick={() => handleDeleteRule(rule.id)}>
+              <Trash2 /> Delete
+            </button>
+          </li>
+        ))}
+      </ul>
+      <textarea
+        placeholder="Enter JSON data"
+        value={evaluationData}
+        onChange={(e) => setEvaluationData(e.target.value)}
+      />
+      <button onClick={handleEvaluate}>Evaluate Rules</button>
+      {evaluationResult !== null && (
+        <div>
+          <h2>Evaluation Result: {evaluationResult ? 'True' : 'False'}</h2>
+          <h3>Individual Rule Results:</h3>
+          <ul>
+            {individualResults.map((result, index) => (
+              <li key={index}>
+                {result.rule} - {result.result ? 'True' : 'False'}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;

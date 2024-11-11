@@ -36,30 +36,39 @@ export function combineRules(rules: string[]): Node {
 }
 
 // Function to evaluate a rule against the provided data
-export function evaluateRule(node: Node, data: Record<string, any>): boolean {
+export function evaluateRule(node: Node, data: Record<string, any>): { result: boolean, ruleResult: boolean } {
   console.log('Evaluating node:', node); // Log the current node being evaluated
 
   if (node.type === 'operand') {
     const { attribute, operator, value } = node;
     const dataValue = data[attribute!];
     console.log(`Evaluating operand: ${attribute} ${operator} ${value} against ${dataValue}`); // Log the evaluation
+    let result: boolean;
     switch (operator) {
-      case '>': return dataValue > value;
-      case '<': return dataValue < value;
-      case '=': return dataValue === value; // Handle equality check
-      case '>=': return dataValue >= value;
-      case '<=': return dataValue <= value;
+      case '>': result = dataValue > value; break;
+      case '<': result = dataValue < value; break;
+      case '=': result = dataValue === value; break; // Handle equality check
+      case '>=': result = dataValue >= value; break;
+      case '<=': result = dataValue <= value; break;
       default: throw new Error(`Unknown operator: ${operator}`);
     }
+    return { result, ruleResult: true }; // Return true for successful operand evaluation
   } else {
     const leftResult = evaluateRule(node.left!, data);
     const rightResult = evaluateRule(node.right!, data);
-    console.log(`Evaluating operator: ${node.operator} with results ${leftResult} and ${rightResult}`); // Log operator evaluation
+    console.log(`Evaluating operator: ${node.operator} with results ${leftResult.result} and ${rightResult.result}`); // Log operator evaluation
+    let result: boolean;
     switch (node.operator) {
-      case 'AND': return leftResult && rightResult;
-      case 'OR': return leftResult || rightResult;
-      default: throw new Error(`Unknown operator: ${node.operator}`);
+      case 'AND':
+        result = leftResult.result && rightResult.result;
+        break;
+      case 'OR':
+        result = leftResult.result || rightResult.result;
+        break;
+      default:
+        throw new Error(`Unknown operator: ${node.operator}`);
     }
+    return { result, ruleResult: leftResult.ruleResult && rightResult.ruleResult }; // Return combined result
   }
 }
 
@@ -111,7 +120,7 @@ function parseExpression(tokens: string[]): Node {
   };
 
   const operator = tokens[3];
-  const right = parseExpression(tokens.slice(4));
+  const right = parseExpression(tokens .slice(4));
 
   return {
     type: 'operator',

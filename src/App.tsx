@@ -22,12 +22,25 @@ const mockApi = {
     mockApi.rules = mockApi.rules.filter(rule => rule.id !== id);
     return Promise.resolve();
   },
-  evaluateRules: (ruleIds: number[], data: Record<string, any>) => {
+  evaluateRules: async (ruleIds: number[], data: Record<string, any>) => {
     const selectedRules = mockApi.rules.filter(rule => ruleIds.includes(rule.id));
     const ruleStrings = selectedRules.map(rule => rule.rule_string);
     const combinedRule = combineRules(ruleStrings);
-    const result = evaluateRule(combinedRule, data);
-    return Promise.resolve({ result });
+    
+    // Evaluate the combined rule
+    const overallResult = evaluateRule(combinedRule, data).result;
+
+    // Evaluate individual rules
+    const individualResults = await Promise.all(ruleStrings.map(async (rule) => {
+      const ruleNode = createRule(rule);
+      const ruleResult = evaluateRule(ruleNode, data);
+      return {
+        rule: rule,
+        result: ruleResult.result,
+      };
+    }));
+
+    return Promise.resolve({ finalResult: overallResult, individualResults });
   }
 };
 
@@ -37,6 +50,7 @@ function App() {
   const [newRuleString, setNewRuleString] = useState('');
   const [evaluationData, setEvaluationData] = useState('');
   const [evaluationResult, setEvaluationResult] = useState<boolean | null>(null);
+  const [individualResults, setIndividualResults] = useState<{ rule: string; result: boolean }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -96,7 +110,8 @@ function App() {
 
     try {
       const response = await mockApi.evaluateRules(rules.map(r => r.id), data);
-      setEvaluationResult(response.result);
+      setEvaluationResult(response.finalResult);
+      setIndividualResults(response.individualResults);
       setError(null);
     } catch (error) {
       console.error('Error evaluating rules:', error);
@@ -109,7 +124,7 @@ function App() {
       <h1 className="text-3xl font-bold mb-8">Rule Engine with AST</h1>
       
       {error && (
-        <div className="bg-red-100 border border -red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 " role="alert">
           <span className="block sm:inline">{error}</span>
           <span className="absolute top-0 bottom-0 right-0 px-4 py-3" onClick={() => setError(null)}>
             <svg className="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
@@ -179,11 +194,21 @@ function App() {
           Evaluate
         </button>
         {evaluationResult !== null && (
-          <p className="mt-4">
-            Evaluation Result: <span className={evaluationResult ? "text-green-600" : "text-red-600"}>
-              {evaluationResult ? "True" : "False"}
-            </span>
-          </p>
+          <div className="mt-4">
+            <p>
+              Overall Evaluation Result: <span className={evaluationResult ? "text-green-600" : "text-red-600"}>
+                {evaluationResult ? "True" : "False"}
+              </span>
+            </p>
+            <h3 className="mt-4 font-semibold">Individual Rule Results:</h3>
+            <ul>
+              {individualResults.map((result, index) => (
+                <li key={index} className={`mt-1 ${result.result ? "text-green-600" : "text-red-600"}`}>
+                  {result.rule}: {result.result ? "True" : "False"}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </div>
